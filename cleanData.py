@@ -1,14 +1,16 @@
 """
 We have 
-	- Male/female teaher counts for each school per year
-		-% wise, compare
-	- Math/English MCAS scores for each school per year
-	- List of public schools, charter schools
+	- Male/female teacher counts for each school per year
+	- Math/English MCAS scores for each school per yearw per gender
+	- List of public schools, charter schools (optional)
 
 Cleaning
-	- School must appear all 8 yrs
-	- School must have at least 10 teachers total
-	- School's code must appear in list of public or charter schools
+	- Must be (inputted) # years of records for the boys MCAS, girls MCAS, and teacher's gender stats
+	- Schools must have at least 10 teachers total
+	- Schools must be in the list of public/charter schools
+	- Format data such that:
+		TeacherColumns = ['school_name','school_code','f_teacher_count','m_teacher_count']
+		StudentColumns = ['school_name','school_code','subject','count','CPI']
 """
 
 
@@ -16,23 +18,15 @@ Cleaning
 import pandas as pd
 import sys
 
-def findPercentMale(row):
-	return row.m_teacher_count / (row.f_teacher_count + row.m_teacher_count)
-
-def wrangleGroup(group):
-	if len(group) != 8:
-		print(len(group))
-		print(group.head())
-	return ((group['f_teacher_count'] + group['m_teacher_count']) > 10).all() and len(group) == 8
-
 def readRawData(startYear,numYears):
 	relevantTeacherColumns = ['SCHOOL','Org Code','Females (# )', 'Males (# )']
 	relevantStudentColumns = ['School Name','School Code','Subject','Student Included','CPI']
 	betterTeacherColumns = ['school_name','school_code','f_teacher_count','m_teacher_count']
-	betterStudentColumns = ['school_name','school_code','subject','count','CPI']
+	betterStudentColumns = ['school_name','school_code','subject','student_count','CPI']
 	totalTeacherData = pd.DataFrame([],columns=betterTeacherColumns)
 	totalStudentData = pd.DataFrame([],columns=betterStudentColumns)
 	validSchoolCodes = set()
+	validSubjects = set(['MATHEMATICS','ENGLISH LANGUAGE ARTS'])
 	for year in range(startYear,startYear+numYears):
 		teacherData = pd.read_excel('teacherData/teacher_stats.xlsx',sheet_name=str(year))[relevantTeacherColumns]
 		maleData = pd.read_excel('MCAS/F_' + str(year) + '.xlsx',skiprows=1)[relevantStudentColumns]
@@ -43,8 +37,10 @@ def readRawData(startYear,numYears):
 		teacherData['year'] = year
 		maleData['year'] = year
 		femaleData['year'] = year
+		maleData['gender'] = 'male'
+		femaleData['gender'] = 'female'
 
-		validSubjects = set(['MATHEMATICS','ENGLISH LANGUAGE ARTS'])
+	
 		maleData = maleData.loc[maleData['subject'].isin(validSubjects)]
 		femaleData = femaleData.loc[femaleData['subject'].isin(validSubjects)]
 		teacherData = teacherData.loc[(teacherData['f_teacher_count'] + teacherData['m_teacher_count']) >= 10]
@@ -58,28 +54,34 @@ def readRawData(startYear,numYears):
 		totalStudentData = totalStudentData.append(maleData,sort=False).append(femaleData,sort=False)
 	return (validSchoolCodes, totalTeacherData, totalStudentData)
 
+def findMalePercent(row):
+	return row.m_teacher_count / (row.f_teacher_count + row.f_teacher_count)
 
 startYear = int(str(int(sys.argv[1]) + 1)[2:])
 numYears = int(sys.argv[2])
-print("startYear: " + str(sys.argv[1]) + ", numYears: " + str(numYears))
+print("startMCASYear: " + str(sys.argv[1]) + ", numYears: " + str(numYears))
 
 validSchoolCodes, totalTeacherData, totalStudentData = readRawData(startYear,numYears)
-
-
-
-# school_directory = pd.read_excel('schoolDirectory/valid_schools.xlsx')
-# validSchoolCodes = validSchoolCodes.intersection(set(school_directory['Org Code']))
-
-print(totalTeacherData.shape)
-print(totalStudentData.shape)
-
 totalTeacherData = totalTeacherData[totalTeacherData['school_code'].isin(validSchoolCodes)]
 totalStudentData = totalStudentData[totalStudentData['school_code'].isin(validSchoolCodes)]
-assert (totalTeacherData.shape[0] == len(validSchoolCodes) * 8 ),'Error in Teacher Data'
-assert (totalStudentData.shape[0] == len(validSchoolCodes) * 32),'Error in Student Data'
+assert (totalTeacherData.shape[0] == len(validSchoolCodes) * numYears ),'Error in Teacher Data'	   #Mult by numYears cuz entry for each school each year
+assert (totalStudentData.shape[0] == len(validSchoolCodes) * 4 * numYears),'Error in Student Data' #Mult by 4 cuz boys,girl with ESL,math for 1 school
 
-
-
-print(len(validSchoolCodes))
+print("We have " + str(len(validSchoolCodes)) + " unique valid schools") 
 print(totalTeacherData.shape)
+print(totalTeacherData.head())
 print(totalStudentData.shape)
+print(totalStudentData.head())
+if totalTeacherData.isnull().values.any():
+	print("Null vals")
+if totalStudentData.isnull().values.any():
+	print("Null vals")
+totalTeacherData['percent_male'] = totalTeacherData.apply(lambda row: row.m_teacher_count / (row.f_teacher_count + row.m_teacher_count),axis=1)
+print(totalStudentData.columns)
+totalStudentData.loc[:,'CPI'] = totalStudentData.loc[:,'CPI'] / 100
+## Make CPI scores decimals
+## Find % 
+totalTeacherData.to_csv('cleanedData/totalTeacherData.csv')
+totalStudentData.to_csv('cleanedData/totalStudentData.csv')
+
+#cleanedData
