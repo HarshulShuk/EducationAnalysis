@@ -68,20 +68,15 @@ assert (totalTeacherData.shape[0] == len(validSchoolCodes) * numYears ),'Error i
 assert (totalStudentData.shape[0] == len(validSchoolCodes) * 4 * numYears),'Error in Student Data' #Mult by 4 cuz boys,girl with ESL,math for 1 school
 
 print("We have " + str(len(validSchoolCodes)) + " unique valid schools") 
-print(totalTeacherData.shape)
-print(totalTeacherData.head())
-print(totalStudentData.shape)
-print(totalStudentData.head())
 if totalTeacherData.isnull().values.any():
 	print("Null vals")
 if totalStudentData.isnull().values.any():
 	print("Null vals")
 totalTeacherData['percent_male'] = totalTeacherData.apply(lambda row: row.m_teacher_count / (row.f_teacher_count + row.m_teacher_count),axis=1)
-print(totalStudentData.columns)
 totalStudentData.loc[:,'CPI'] = totalStudentData.loc[:,'CPI'] / 100
 ## Make CPI scores decimals
 ## Find % 
-totalTeacherData.to_csv('cleanedData/totalTeacherData.csv')
-totalStudentData.to_csv('cleanedData/totalStudentData.csv')
+totalTeacherData.to_csv('cleanedData/totalTeacherData.csv', index=False)
+totalStudentData.to_csv('cleanedData/totalStudentData.csv', index=False)
 
 #cleanedData
